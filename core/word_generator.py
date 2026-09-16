@@ -15,31 +15,39 @@ def gerar_documento_word(
     """
     Gera o documento Word preenchido com base no template e dados extraídos.
     - Mantém a numeração padrão nativa do Word (1., 2., 3...) na coluna N sem duplicar texto.
+    - Título centralizado com espaçamento simples normalizado.
     - Ajusta a altura das linhas limpando parágrafos extras.
     - Aplica o tamanho de fonte 12 na tabela.
-    - Preserva o cabeçalho e rodapé oficiais.
+    - Preserva o cabeçalho e rodapé oficiais centralizados.
     """
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"Arquivo modelo não encontrado: {template_path}")
 
     doc = docx.Document(template_path)
 
-    destino = dados_viagem.get("destino", "MONTES CLAROS")
-    data_viagem = dados_viagem.get("data_viagem", "")
-    dia_semana = dados_viagem.get("dia_semana", "")
-    hora_saida = dados_viagem.get("hora_saida", "05:00")
+    destino = dados_viagem.get("destino", "MONTES CLAROS").strip()
+    data_viagem = dados_viagem.get("data_viagem", "").strip()
+    dia_semana = dados_viagem.get("dia_semana", "").strip()
+    hora_saida = dados_viagem.get("hora_saida", "05:00").strip()
     passageiros = dados_viagem.get("passageiros", [])
 
-    # 1. Atualiza os parágrafos de cabeçalho no corpo do documento
+    # 1. Atualiza os parágrafos de título no corpo do documento (centralizados e com espaço simples)
     if len(doc.paragraphs) > 1:
-        doc.paragraphs[1].text = f"VIAGEM  DE {destino} {data_viagem}  {dia_semana}"
-        for r in doc.paragraphs[1].runs:
+        p1 = doc.paragraphs[1]
+        p1.text = f"VIAGEM DE {destino} {data_viagem} {dia_semana}"
+        p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for r in p1.runs:
             r.bold = True
             r.font.size = Pt(16)
             
     if len(doc.paragraphs) > 2:
-        doc.paragraphs[2].text = f"SAÍDA - {hora_saida} HRS DO POSTO DE SAUDE"
-        for r in doc.paragraphs[2].runs:
+        p2 = doc.paragraphs[2]
+        p2.text = f"SAÍDA - {hora_saida} HRS DO POSTO DE SAUDE"
+        p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # Remove tabulações antigas do XML para garantir alinhamento central perfeito
+        for tabs in p2._p.xpath(".//w:tabs"):
+            tabs.getparent().remove(tabs)
+        for r in p2.runs:
             r.bold = True
             r.font.size = Pt(16)
 
@@ -78,7 +86,6 @@ def gerar_documento_word(
 
     # Função auxiliar para configurar a célula com apenas 1 parágrafo limpo
     def set_cell(cell, text: str, align=WD_ALIGN_PARAGRAPH.LEFT, bold: bool = False):
-        # Garante que não haja parágrafos extras que causam espaçamento vertical indesejado
         while len(cell.paragraphs) > 1:
             p_elem = cell.paragraphs[-1]._p
             cell._tc.remove(p_elem)
