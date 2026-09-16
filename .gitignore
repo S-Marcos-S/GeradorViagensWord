@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+build/
+dist/
+venv/
+.env
+sample_data/
+*.docx
+!modelo_base.docx
