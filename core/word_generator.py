@@ -14,6 +14,7 @@ def gerar_documento_word(
 ) -> str:
     """
     Gera o documento Word preenchido com base no template e dados extraídos.
+    - Remove linha vazia no topo acima do título.
     - Mantém a numeração padrão nativa do Word (1., 2., 3...) na coluna N sem duplicar texto.
     - Título centralizado com espaçamento simples normalizado.
     - Ajusta a altura das linhas limpando parágrafos extras.
@@ -31,17 +32,21 @@ def gerar_documento_word(
     hora_saida = dados_viagem.get("hora_saida", "05:00").strip()
     passageiros = dados_viagem.get("passageiros", [])
 
-    # 1. Atualiza os parágrafos de título no corpo do documento (centralizados e com espaço simples)
-    if len(doc.paragraphs) > 1:
-        p1 = doc.paragraphs[1]
+    # 1. Remove qualquer parágrafo vazio no início do documento (acima do título)
+    while len(doc.paragraphs) > 0 and not doc.paragraphs[0].text.strip():
+        doc._body._element.remove(doc.paragraphs[0]._p)
+
+    # Atualiza os parágrafos de título no corpo do documento (centralizados e com espaço simples)
+    if len(doc.paragraphs) > 0:
+        p1 = doc.paragraphs[0]
         p1.text = f"VIAGEM DE {destino} {data_viagem} {dia_semana}"
         p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
         for r in p1.runs:
             r.bold = True
             r.font.size = Pt(16)
             
-    if len(doc.paragraphs) > 2:
-        p2 = doc.paragraphs[2]
+    if len(doc.paragraphs) > 1:
+        p2 = doc.paragraphs[1]
         p2.text = f"SAÍDA - {hora_saida} HRS DO POSTO DE SAUDE"
         p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
         # Remove tabulações antigas do XML para garantir alinhamento central perfeito
