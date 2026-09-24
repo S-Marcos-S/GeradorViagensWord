@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    name: Compilar GeradorViagensWord.exe
+    name: Compilar Executável e Pacotes Compactados
     runs-on: windows-latest
 
     steps:
@@ -36,18 +36,59 @@ jobs:
         run: |
           pyinstaller --noconsole --onefile --add-data "modelo_base.docx;." --hidden-import "core.version" --hidden-import "core.updater" --hidden-import "core.viagem_parser" --hidden-import "core.word_generator" --name "GeradorViagensWord" app.py
 
+      - name: Criar pacotes compactados (.zip)
+        shell: pwsh
+        run: |
+          # 1. Pacote compactado para Windows (Executável + Modelo + Scripts)
+          New-Item -ItemType Directory -Force -Path dist/pacote_windows
+          Copy-Item dist/GeradorViagensWord.exe dist/pacote_windows/
+          Copy-Item modelo_base.docx dist/pacote_windows/
+          Copy-Item iniciar_programa.bat dist/pacote_windows/
+          Copy-Item atualizar_programa.bat dist/pacote_windows/
+          Copy-Item README.md dist/pacote_windows/
+          Compress-Archive -Path dist/pacote_windows/* -DestinationPath dist/GeradorViagensWord-Windows.zip -Force
+
+          # 2. Pacote compactado de código-fonte completo
+          New-Item -ItemType Directory -Force -Path dist/pacote_codigo/GeradorViagensWord
+          Copy-Item app.py dist/pacote_codigo/GeradorViagensWord/
+          Copy-Item modelo_base.docx dist/pacote_codigo/GeradorViagensWord/
+          Copy-Item requirements.txt dist/pacote_codigo/GeradorViagensWord/
+          Copy-Item iniciar_programa.bat dist/pacote_codigo/GeradorViagensWord/
+          Copy-Item atualizar_programa.bat dist/pacote_codigo/GeradorViagensWord/
+          Copy-Item gerar_executavel.bat dist/pacote_codigo/GeradorViagensWord/
+          Copy-Item README.md dist/pacote_codigo/GeradorViagensWord/
+          Copy-Item -Recurse core dist/pacote_codigo/GeradorViagensWord/
+          Compress-Archive -Path dist/pacote_codigo/GeradorViagensWord -DestinationPath dist/GeradorViagensWord-CodigoFonte.zip -Force
+
+      - name: Determinar nome e tag da Release
+        id: release_info
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "release_name=Gerador de Viagens Word ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag_name=latest" >> $GITHUB_OUTPUT
+            echo "release_name=Versão Mais Recente (Automática)" >> $GITHUB_OUTPUT
+          fi
+
       - name: Publicar Release no GitHub
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: latest
-          name: "Versão Mais Recente (Automática)"
+          tag_name: ${{ steps.release_info.outputs.tag_name }}
+          name: ${{ steps.release_info.outputs.release_name }}
           body: |
-            Executável oficial atualizado automaticamente pelo repositório GitHub.
-            Arquivo: `GeradorViagensWord.exe`
+            ### 🚀 Gerador de Listas de Viagens (PDF para Word)
+
+            #### 📦 Arquivos Disponíveis para Download:
+            - **`GeradorViagensWord.exe`**: Executável único para Windows (não precisa instalar Python).
+            - **`GeradorViagensWord-Windows.zip`**: Pacote compactado contendo o executável, modelo base e scripts de execução.
+            - **`GeradorViagensWord-CodigoFonte.zip`**: Código-fonte completo com todos os scripts e templates.
           draft: false
           prerelease: false
           files: |
             dist/GeradorViagensWord.exe
+            dist/GeradorViagensWord-Windows.zip
+            dist/GeradorViagensWord-CodigoFonte.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
