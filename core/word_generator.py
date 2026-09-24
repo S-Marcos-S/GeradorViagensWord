@@ -1,4 +1,5 @@
 import os
+import re
 import copy
 from typing import Dict, Any, Optional
 import docx
@@ -129,10 +130,12 @@ def gerar_documento_word(
         tipo = p_data.get("tipo", "").lower()
         nome = p_data.get("nome", "").strip()
         if tipo == "acompanhante":
-            if not nome or nome.upper() == "ACOMPANHANTE" or nome == "-":
+            # Remove qualquer prefixo existente como "ACOMPANHANTE", "ACOMP." ou "ACOMP"
+            nome_sem_prefixo = re.sub(r'^(?:ACOMPANHANTE|ACOMP\.?)\s*', '', nome, flags=re.IGNORECASE).strip()
+            if not nome_sem_prefixo or nome_sem_prefixo == "-":
                 pac_text = "ACOMP."
             else:
-                pac_text = f"ACOMP. {nome}"
+                pac_text = f"ACOMP. {nome_sem_prefixo}"
         else:
             pac_text = nome
         set_cell(row.cells[2], pac_text, align=WD_ALIGN_PARAGRAPH.LEFT)
@@ -144,7 +147,10 @@ def gerar_documento_word(
             set_cell(row.cells[3], "", align=WD_ALIGN_PARAGRAPH.CENTER)
 
         # Coluna 4: CLINICA (Estabelecimento)
-        set_cell(row.cells[4], p_data.get("estabelecimento", ""), align=WD_ALIGN_PARAGRAPH.LEFT)
+        clinica = p_data.get("estabelecimento", "").strip()
+        if "SANTA CASA DE MONTES CLAROS" in clinica.upper() and "IRMANDADE" in clinica.upper():
+            clinica = "SANTA CASA DE MONTES CLAROS"
+        set_cell(row.cells[4], clinica, align=WD_ALIGN_PARAGRAPH.LEFT)
 
         # Coluna 5: PROCEDIMENTO (Em branco)
         set_cell(row.cells[5], "", align=WD_ALIGN_PARAGRAPH.CENTER)

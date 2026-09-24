@@ -105,6 +105,10 @@ def extrair_dados_pdf(pdf_path: str) -> Dict[str, Any]:
             if estabel == "-":
                 estabel = ""
 
+            estabel = estabel.strip()
+            if "SANTA CASA DE MONTES CLAROS" in estabel.upper() and "IRMANDADE" in estabel.upper():
+                estabel = "SANTA CASA DE MONTES CLAROS"
+
             passengers.append({
                 "seat": seat.strip(),
                 "tipo": tipo.strip(),
@@ -121,9 +125,10 @@ def extrair_dados_pdf(pdf_path: str) -> Dict[str, Any]:
     # Identifica passageiros que estão exclusivamente na volta
     ida_nomes = {p["nome"].strip().upper() for p in ida_passengers if p["nome"].strip()}
     volta_only = []
+    nomes_genericos_acomp = {"ACOMP", "ACOMP.", "ACOMPANHANTE", "-"}
     for vp in volta_passengers:
         nome_clean = vp["nome"].strip().upper()
-        if nome_clean and nome_clean != "ACOMPANHANTE" and nome_clean not in ida_nomes:
+        if nome_clean and nome_clean not in nomes_genericos_acomp and nome_clean not in ida_nomes:
             vp["is_volta_only"] = True
             volta_only.append(vp)
 

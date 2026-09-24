@@ -95,6 +95,9 @@ def iniciar_gui():
     style.configure("Secondary.TButton", font=("Segoe UI", 9), background="#e2e8f0", foreground=text_color, padding=5)
     style.map("Secondary.TButton", background=[("active", "#cbd5e1")])
 
+    style.configure("Update.TButton", font=("Segoe UI", 9, "bold"), background="#0284c7", foreground="white", borderwidth=0, padding=6)
+    style.map("Update.TButton", background=[("active", "#0369a1"), ("disabled", "#9ca3af")])
+
     # Variáveis da interface
     pdf_path_var = tk.StringVar(value="")
     output_dir_var = tk.StringVar(value="")
@@ -110,15 +113,110 @@ def iniciar_gui():
     header_frame = tk.Frame(main_frame, bg=bg_color)
     header_frame.pack(fill="x", pady=(0, 15))
 
-    lbl_title = ttk.Label(header_frame, text="Gerador de Listas de Viagens", style="Title.TLabel")
+    header_text_frame = tk.Frame(header_frame, bg=bg_color)
+    header_text_frame.pack(side="left", fill="x", expand=True)
+
+    lbl_title = ttk.Label(header_text_frame, text="Gerador de Listas de Viagens", style="Title.TLabel")
     lbl_title.pack(anchor="w")
 
     lbl_sub = ttk.Label(
-        header_frame,
+        header_text_frame,
         text="Converte automaticamente o PDF Mapa de Viagem para o modelo oficial em Word (.docx)",
         style="Subtitle.TLabel"
     )
     lbl_sub.pack(anchor="w")
+
+    def abrir_janela_atualizacao():
+        import threading
+        from core.updater import executar_atualizacao, is_frozen, GITHUB_REPO
+
+        modal = tk.Toplevel(root)
+        modal.title("Atualização do Aplicativo")
+        modal.geometry("480x230")
+        modal.resizable(False, False)
+        modal.configure(bg=bg_color)
+        modal.transient(root)
+        modal.grab_set()
+
+        try:
+            root_x = root.winfo_rootx()
+            root_y = root.winfo_rooty()
+            root_w = root.winfo_width()
+            root_h = root.winfo_height()
+            modal.geometry(f"+{root_x + max(0, (root_w - 480) // 2)}+{root_y + max(0, (root_h - 230) // 2)}")
+        except Exception:
+            pass
+
+        frame_m = tk.Frame(modal, bg=bg_color, padx=20, pady=20)
+        frame_m.pack(fill="both", expand=True)
+
+        lbl_m_title = ttk.Label(frame_m, text="Atualizar pelo GitHub", style="Title.TLabel", font=("Segoe UI", 12, "bold"))
+        lbl_m_title.pack(anchor="w", pady=(0, 4))
+
+        tipo_str = "Executável (.exe)" if is_frozen() else "Código-Fonte / Script"
+        lbl_m_info = ttk.Label(
+            frame_m,
+            text=f"Modo: {tipo_str} | Repositório: {GITHUB_REPO}",
+            style="Subtitle.TLabel",
+            font=("Segoe UI", 9)
+        )
+        lbl_m_info.pack(anchor="w", pady=(0, 12))
+
+        lbl_m_status = ttk.Label(
+            frame_m,
+            text="Clique em 'Atualizar Agora' para buscar e instalar a versão mais recente.",
+            style="CardBody.TLabel",
+            wraplength=430
+        )
+        lbl_m_status.pack(anchor="w", pady=(0, 10))
+
+        prog_bar = ttk.Progressbar(frame_m, mode="indeterminate", length=430)
+        prog_bar.pack(fill="x", pady=(0, 15))
+
+        btn_modal_box = tk.Frame(frame_m, bg=bg_color)
+        btn_modal_box.pack(fill="x")
+
+        def atualizar_ui(msg, pct):
+            def _apply():
+                lbl_m_status.config(text=msg)
+                if pct >= 0:
+                    prog_bar.config(mode="determinate", value=pct)
+                else:
+                    prog_bar.config(mode="indeterminate")
+                    prog_bar.start(10)
+            modal.after(0, _apply)
+
+        def iniciar_atualizacao():
+            btn_iniciar.config(state="disabled")
+            btn_fechar.config(state="disabled")
+            prog_bar.config(mode="indeterminate")
+            prog_bar.start(10)
+
+            def worker():
+                sucesso, msg = executar_atualizacao(atualizar_ui)
+                def _done():
+                    prog_bar.stop()
+                    lbl_m_status.config(text=msg)
+                    btn_fechar.config(state="normal")
+                    if not sucesso:
+                        btn_iniciar.config(state="normal", text="Tentar Novamente")
+                modal.after(0, _done)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        btn_iniciar = ttk.Button(btn_modal_box, text="Atualizar Agora", command=iniciar_atualizacao, style="Action.TButton")
+        btn_iniciar.pack(side="left", padx=(0, 10))
+
+        btn_fechar = ttk.Button(btn_modal_box, text="Fechar", command=modal.destroy, style="Secondary.TButton")
+        btn_fechar.pack(side="right")
+
+    btn_update_app = ttk.Button(
+        header_frame,
+        text="🔄 Atualizar pelo GitHub",
+        command=abrir_janela_atualizacao,
+        style="Update.TButton"
+    )
+    btn_update_app.pack(side="right", anchor="ne", padx=(10, 0), pady=4)
 
     # Card 1: Seleção de Arquivo PDF
     card_pdf = tk.LabelFrame(main_frame, text=" 1. Arquivo PDF de Origem ", bg=card_bg, fg=primary_color, font=("Segoe UI", 10, "bold"), padx=15, pady=12)
@@ -291,6 +389,10 @@ def iniciar_gui():
 # ==========================================
 def main():
     if len(sys.argv) > 1:
+        if sys.argv[1] in ("--atualizar", "--update", "-u"):
+            from core.updater import executar_atualizacao_cli
+            sys.exit(executar_atualizacao_cli())
+
         # Modo linha de comando (CLI)
         pdf_arg = sys.argv[1]
         out_arg = sys.argv[2] if len(sys.argv) > 2 else None

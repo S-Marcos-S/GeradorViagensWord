@@ -1,0 +1,53 @@
+name: Compilar Executável Windows e Criar Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compilar GeradorViagensWord.exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compilar executável com PyInstaller
+        run: |
+          pyinstaller --noconsole --onefile --add-data "modelo_base.docx;." --hidden-import "core.updater" --hidden-import "core.viagem_parser" --hidden-import "core.word_generator" --name "GeradorViagensWord" app.py
+
+      - name: Publicar Release no GitHub
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+        with:
+          tag_name: latest
+          name: "Versão Mais Recente (Automática)"
+          body: |
+            Executável oficial atualizado automaticamente pelo repositório GitHub.
+            Arquivo: `GeradorViagensWord.exe`
+          draft: false
+          prerelease: false
+          files: |
+            dist/GeradorViagensWord.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

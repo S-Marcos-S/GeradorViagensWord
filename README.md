@@ -58,7 +58,14 @@ Se preferir usar o programa como um `.exe` que não precisa abrir prompt ou pode
 
 ---
 
-### Opção 3: Uso por Linha de Comando (CLI / Terminal)
+### Opção 3: Atualizar o Aplicativo pelo Repositório do GitHub
+O aplicativo possui suporte a auto-atualização tanto no executável `.exe` quanto no script Python:
+- **Pela Interface Gráfica**: Clique no botão **"🔄 Atualizar pelo GitHub"** localizado no canto superior direito do cabeçalho. O aplicativo verificará a versão mais recente no GitHub, baixará a atualização e reiniciará o aplicativo automaticamente no mesmo local!
+- **Pelo Prompt / Script**: Dê dois cliques no arquivo **`atualizar_programa.bat`** ou execute `python app.py --atualizar`.
+
+---
+
+### Opção 4: Uso por Linha de Comando (CLI / Terminal)
 Você também pode executar diretamente via terminal:
 ```bash
 python app.py "caminho\para\mapa-viagem.pdf"
@@ -78,10 +85,14 @@ Viagens_moc/
 ├── modelo_base.docx        # Template Word com cabeçalho, logo, rodapé e tabela
 ├── requirements.txt        # Dependências do Python (pypdf, python-docx, pyinstaller)
 ├── iniciar_programa.bat    # Atalho para iniciar no Windows
+├── atualizar_programa.bat  # Script para atualizar pelo GitHub no Windows
 ├── gerar_executavel.bat    # Script para compilar o .exe para Windows
 ├── README.md               # Instruções detalhadas de uso
+├── .github/workflows/
+│   └── release.yml         # Compilação e publicação automática do .exe no GitHub
 └── core/
     ├── __init__.py
+    ├── updater.py          # Gerenciador de atualização pelo GitHub e auto-reinício
     ├── viagem_parser.py    # Leitor e extrator de dados do PDF
     └── word_generator.py   # Gerador do arquivo docx formatado
 ```
