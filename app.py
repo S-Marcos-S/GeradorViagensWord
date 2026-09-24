@@ -311,6 +311,110 @@ def iniciar_gui():
             messagebox.showerror("Erro ao ler PDF", f"Não foi possível ler as informações do PDF:\n{e}")
             status_var.set("Erro ao analisar o arquivo selecionado.")
 
+    # Ações de Abertura do Arquivo
+    def abrir_arquivo_gerado():
+        caminho = last_generated_file.get("path")
+        if caminho and os.path.exists(caminho):
+            if sys.platform.startswith("win"):
+                os.startfile(caminho)
+            elif sys.platform.startswith("darwin"):
+                subprocess.call(["open", caminho])
+            else:
+                subprocess.call(["xdg-open", caminho])
+
+    def abrir_pasta_gerada():
+        caminho = last_generated_file.get("path")
+        if caminho and os.path.exists(caminho):
+            pasta = os.path.dirname(caminho)
+            if sys.platform.startswith("win"):
+                os.startfile(pasta)
+            elif sys.platform.startswith("darwin"):
+                subprocess.call(["open", pasta])
+            else:
+                subprocess.call(["xdg-open", pasta])
+
+    def mostrar_sucesso_geracao(output_file: str):
+        dialog = tk.Toplevel(root)
+        dialog.title("Viagem Gerada!")
+        dialog.geometry("520x230")
+        dialog.resizable(False, False)
+        dialog.configure(bg=bg_color)
+        dialog.transient(root)
+        dialog.grab_set()
+
+        try:
+            root_x = root.winfo_rootx()
+            root_y = root.winfo_rooty()
+            root_w = root.winfo_width()
+            root_h = root.winfo_height()
+            dialog.geometry(f"+{root_x + max(0, (root_w - 520) // 2)}+{root_y + max(0, (root_h - 230) // 2)}")
+        except Exception:
+            pass
+
+        content_frame = tk.Frame(dialog, bg=bg_color, padx=20, pady=20)
+        content_frame.pack(fill="both", expand=True)
+
+        lbl_t = ttk.Label(
+            content_frame,
+            text="Documento Word Criado com Sucesso!",
+            style="Title.TLabel",
+            font=("Segoe UI", 12, "bold")
+        )
+        lbl_t.pack(anchor="w", pady=(0, 6))
+
+        nome_arq = os.path.basename(output_file)
+        lbl_f = ttk.Label(
+            content_frame,
+            text=f"Arquivo: {nome_arq}",
+            style="InfoVal.TLabel",
+            font=("Segoe UI", 10, "bold")
+        )
+        lbl_f.pack(anchor="w", pady=(0, 4))
+
+        lbl_c = ttk.Label(
+            content_frame,
+            text=f"Salvo em: {output_file}",
+            style="CardBody.TLabel",
+            wraplength=480,
+            font=("Segoe UI", 9)
+        )
+        lbl_c.pack(anchor="w", pady=(0, 18))
+
+        btn_box = tk.Frame(content_frame, bg=bg_color)
+        btn_box.pack(fill="x")
+
+        def on_abrir():
+            abrir_arquivo_gerado()
+            dialog.destroy()
+
+        def on_pasta():
+            abrir_pasta_gerada()
+            dialog.destroy()
+
+        btn_abrir = ttk.Button(
+            btn_box,
+            text="📄 Abrir Viagem Gerada",
+            command=on_abrir,
+            style="Action.TButton"
+        )
+        btn_abrir.pack(side="left", padx=(0, 10))
+
+        btn_pasta = ttk.Button(
+            btn_box,
+            text="📁 Abrir Pasta",
+            command=on_pasta,
+            style="Secondary.TButton"
+        )
+        btn_pasta.pack(side="left", padx=(0, 10))
+
+        btn_fechar = ttk.Button(
+            btn_box,
+            text="Fechar",
+            command=dialog.destroy,
+            style="Secondary.TButton"
+        )
+        btn_fechar.pack(side="right")
+
     # Ações e Botão de Gerar
     btn_frame = tk.Frame(main_frame, bg=bg_color)
     btn_frame.pack(fill="x", pady=(0, 10))
@@ -337,10 +441,7 @@ def iniciar_gui():
             btn_abrir_arq.pack(side="left", padx=(0, 10))
             btn_abrir_pasta.pack(side="left")
 
-            messagebox.showinfo(
-                "Documento Gerado!",
-                f"O arquivo Word foi criado com sucesso com as informações do mapa de viagem:\n\n{output_file}"
-            )
+            mostrar_sucesso_geracao(output_file)
         except Exception as e:
             messagebox.showerror("Erro ao Gerar Documento", f"Ocorreu um erro ao gerar o arquivo Word:\n{e}")
             status_var.set("Erro ao gerar o documento.")
@@ -353,27 +454,6 @@ def iniciar_gui():
     # Botões auxiliares pós-geração
     pos_frame = tk.Frame(main_frame, bg=bg_color)
     pos_frame.pack(fill="x", pady=(0, 10))
-
-    def abrir_arquivo_gerado():
-        caminho = last_generated_file.get("path")
-        if caminho and os.path.exists(caminho):
-            if sys.platform.startswith("win"):
-                os.startfile(caminho)
-            elif sys.platform.startswith("darwin"):
-                subprocess.call(["open", caminho])
-            else:
-                subprocess.call(["xdg-open", caminho])
-
-    def abrir_pasta_gerada():
-        caminho = last_generated_file.get("path")
-        if caminho and os.path.exists(caminho):
-            pasta = os.path.dirname(caminho)
-            if sys.platform.startswith("win"):
-                os.startfile(pasta)
-            elif sys.platform.startswith("darwin"):
-                subprocess.call(["open", pasta])
-            else:
-                subprocess.call(["xdg-open", pasta])
 
     btn_abrir_arq = ttk.Button(pos_frame, text="Abrir Documento Word", command=abrir_arquivo_gerado, style="Secondary.TButton")
     btn_abrir_pasta = ttk.Button(pos_frame, text="Abrir Pasta de Destino", command=abrir_pasta_gerada, style="Secondary.TButton")
