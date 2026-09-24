@@ -60,7 +60,7 @@ Se preferir usar o programa como um `.exe` que não precisa abrir prompt ou pode
 
 ### Opção 3: Atualizar o Aplicativo pelo Repositório do GitHub
 O aplicativo possui suporte a auto-atualização tanto no executável `.exe` quanto no script Python:
-- **Pela Interface Gráfica**: Clique no botão **"🔄 Atualizar pelo GitHub"** localizado no canto superior direito do cabeçalho. O aplicativo verificará a versão mais recente no GitHub, baixará a atualização e reiniciará o aplicativo automaticamente no mesmo local!
+- **Pela Interface Gráfica**: Clique no botão **"Atualização"** localizado no canto superior direito do cabeçalho. O aplicativo verificará se há uma versão mais recente no GitHub antes de baixar qualquer atualização, atualizando e reiniciando automaticamente no mesmo local apenas se houver novidades!
 - **Pelo Prompt / Script**: Dê dois cliques no arquivo **`atualizar_programa.bat`** ou execute `python app.py --atualizar`.
 
 ---

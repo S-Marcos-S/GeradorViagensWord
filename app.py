@@ -128,10 +128,10 @@ def iniciar_gui():
 
     def abrir_janela_atualizacao():
         import threading
-        from core.updater import executar_atualizacao, is_frozen, GITHUB_REPO
+        from core.updater import executar_atualizacao, is_frozen, GITHUB_REPO, obter_versao_local
 
         modal = tk.Toplevel(root)
-        modal.title("Atualização do Aplicativo")
+        modal.title("Atualização")
         modal.geometry("480x230")
         modal.resizable(False, False)
         modal.configure(bg=bg_color)
@@ -150,13 +150,14 @@ def iniciar_gui():
         frame_m = tk.Frame(modal, bg=bg_color, padx=20, pady=20)
         frame_m.pack(fill="both", expand=True)
 
-        lbl_m_title = ttk.Label(frame_m, text="Atualizar pelo GitHub", style="Title.TLabel", font=("Segoe UI", 12, "bold"))
+        lbl_m_title = ttk.Label(frame_m, text="Atualização do Aplicativo", style="Title.TLabel", font=("Segoe UI", 12, "bold"))
         lbl_m_title.pack(anchor="w", pady=(0, 4))
 
         tipo_str = "Executável (.exe)" if is_frozen() else "Código-Fonte / Script"
+        versao_local = obter_versao_local()
         lbl_m_info = ttk.Label(
             frame_m,
-            text=f"Modo: {tipo_str} | Repositório: {GITHUB_REPO}",
+            text=f"Versão Atual: v{versao_local} ({tipo_str}) | GitHub: {GITHUB_REPO}",
             style="Subtitle.TLabel",
             font=("Segoe UI", 9)
         )
@@ -164,7 +165,7 @@ def iniciar_gui():
 
         lbl_m_status = ttk.Label(
             frame_m,
-            text="Clique em 'Atualizar Agora' para buscar e instalar a versão mais recente.",
+            text="Clique em 'Atualizar Agora' para verificar se há uma nova versão no GitHub.",
             style="CardBody.TLabel",
             wraplength=430
         )
@@ -198,8 +199,7 @@ def iniciar_gui():
                     prog_bar.stop()
                     lbl_m_status.config(text=msg)
                     btn_fechar.config(state="normal")
-                    if not sucesso:
-                        btn_iniciar.config(state="normal", text="Tentar Novamente")
+                    btn_iniciar.config(state="normal", text="Verificar Novamente")
                 modal.after(0, _done)
 
             threading.Thread(target=worker, daemon=True).start()
@@ -212,7 +212,7 @@ def iniciar_gui():
 
     btn_update_app = ttk.Button(
         header_frame,
-        text="🔄 Atualizar pelo GitHub",
+        text="Atualização",
         command=abrir_janela_atualizacao,
         style="Update.TButton"
     )

@@ -34,7 +34,7 @@ jobs:
 
       - name: Compilar executável com PyInstaller
         run: |
-          pyinstaller --noconsole --onefile --add-data "modelo_base.docx;." --hidden-import "core.updater" --hidden-import "core.viagem_parser" --hidden-import "core.word_generator" --name "GeradorViagensWord" app.py
+          pyinstaller --noconsole --onefile --add-data "modelo_base.docx;." --hidden-import "core.version" --hidden-import "core.updater" --hidden-import "core.viagem_parser" --hidden-import "core.word_generator" --name "GeradorViagensWord" app.py
 
       - name: Publicar Release no GitHub
         uses: softprops/action-gh-release@v2

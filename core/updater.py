@@ -1,14 +1,18 @@
 import os
 import sys
+import re
 import json
 import shutil
 import tempfile
 import zipfile
 import subprocess
 import ssl
+import datetime
 import urllib.request
 import urllib.error
 from typing import Tuple, Optional, Callable
+
+from core.version import VERSION as LOCAL_VERSION, COMMIT_SHA as LOCAL_COMMIT_SHA
 
 GITHUB_REPO = "S-Marcos-S/GeradorViagensWord"
 GITHUB_BRANCH = "main"
@@ -25,12 +29,43 @@ def get_project_dir() -> str:
     if is_frozen():
         return os.path.dirname(os.path.abspath(sys.executable))
     else:
-        # Se for script Python, a raiz é o diretório pai de core/ ou o diretório de app.py
         current_dir = os.path.dirname(os.path.abspath(__file__))
         parent = os.path.dirname(current_dir)
         if os.path.isfile(os.path.join(parent, "app.py")):
             return parent
         return current_dir
+
+def parse_version(v_str: str) -> tuple:
+    """Converte string de versão '1.1.0' ou 'v1.2.3' para tupla comparável (1, 1, 0)."""
+    if not v_str:
+        return (0, 0, 0)
+    v_clean = v_str.strip().lstrip("vV")
+    parts = []
+    for part in re.split(r'[.-]', v_clean):
+        if part.isdigit():
+            parts.append(int(part))
+        else:
+            break
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
+
+def obter_versao_local() -> str:
+    """Retorna a versão local cadastrada."""
+    return LOCAL_VERSION
+
+def obter_commit_local() -> str:
+    """Retorna o commit SHA local via Git ou do fallback em version.py."""
+    project_dir = get_project_dir()
+    git_dir = os.path.join(project_dir, ".git")
+    if os.path.isdir(git_dir):
+        try:
+            res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=project_dir, capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout.strip()
+        except Exception:
+            pass
+    return LOCAL_COMMIT_SHA
 
 def _get_ssl_context():
     """Cria contexto SSL com fallback para compatibilidade com certificados de Windows 7."""
@@ -80,26 +115,113 @@ def _download_file(url: str, dest_path: str, progress_callback: Optional[Callabl
                         progress_callback(f"Baixando: {mb_down:.1f} MB...", -1)
     return True
 
-def verificar_release_executavel() -> Tuple[bool, Optional[str], Optional[str]]:
+def verificar_se_tem_atualizacao(progress_callback: Optional[Callable[[str, float], None]] = None) -> Tuple[bool, str, Optional[str]]:
     """
-    Consulta o GitHub Releases para verificar se há executável disponível.
-    Retorna (tem_asset, download_url, tag_name).
+    Verifica se o repositório no GitHub possui uma versão mais recente que a local.
+    Retorna:
+      (tem_atualizacao: bool, mensagem_explicativa: str, url_download_ou_info: Optional[str])
     """
-    try:
-        with _abrir_url(GITHUB_API_LATEST_RELEASE, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            tag_name = data.get("tag_name", "latest")
-            assets = data.get("assets", [])
-            for asset in assets:
-                name = asset.get("name", "").lower()
-                if name.endswith(".exe"):
-                    return True, asset.get("browser_download_url"), tag_name
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return False, None, None
-    except Exception:
-        pass
-    return False, None, None
+    if progress_callback:
+        progress_callback("Consultando GitHub para verificar versão...", 10)
+
+    if is_frozen():
+        # Modo EXECUTÁVEL (.exe)
+        try:
+            with _abrir_url(GITHUB_API_LATEST_RELEASE, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                tag_name = data.get("tag_name", "").strip()
+                published_at = data.get("published_at", "")
+                assets = data.get("assets", [])
+
+                exe_asset = None
+                for asset in assets:
+                    if asset.get("name", "").lower().endswith(".exe"):
+                        exe_asset = asset
+                        break
+
+                if not exe_asset:
+                    return False, f"Nenhum executável (.exe) publicado nas Releases do GitHub.", None
+
+                download_url = exe_asset.get("browser_download_url")
+                asset_date_str = exe_asset.get("updated_at") or published_at
+
+                # 1. Comparação de versão semântica da tag
+                v_remote = parse_version(tag_name)
+                v_local = parse_version(LOCAL_VERSION)
+                if v_remote > v_local:
+                    return True, f"Nova versão encontrada: {tag_name} (versão atual: v{LOCAL_VERSION})", download_url
+
+                # 2. Se as versões forem iguais ou tag genérica, compara data de modificação
+                if asset_date_str:
+                    try:
+                        clean_dt = asset_date_str.replace("Z", "+00:00")
+                        remote_ts = datetime.datetime.fromisoformat(clean_dt).timestamp()
+                        local_mtime = os.path.getmtime(sys.executable)
+                        if remote_ts > (local_mtime + 60):
+                            return True, f"Nova compilação do executável disponível no GitHub!", download_url
+                    except Exception:
+                        pass
+
+                return False, f"O executável já está na versão mais recente (v{LOCAL_VERSION})!", None
+
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return False, f"Nenhuma Release publicada no GitHub ainda (versão local: v{LOCAL_VERSION}).", None
+            return False, f"Erro ao consultar GitHub Releases: HTTP {e.code}", None
+        except Exception as e:
+            return False, f"Não foi possível verificar no GitHub: {e}", None
+
+    else:
+        # Modo PROGRAMA PYTHON / CÓDIGO-FONTE
+        commit_url = f"https://api.github.com/repos/{GITHUB_REPO}/commits/{GITHUB_BRANCH}"
+        try:
+            with _abrir_url(commit_url, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                remote_sha = data.get("sha", "").strip()
+                remote_msg = data.get("commit", {}).get("message", "").splitlines()[0]
+                local_sha = obter_commit_local().strip()
+
+                if local_sha and remote_sha:
+                    if local_sha.lower() == remote_sha.lower() or \
+                       local_sha.lower().startswith(remote_sha[:7].lower()) or \
+                       remote_sha.lower().startswith(local_sha[:7].lower()):
+                        return False, f"O aplicativo já está na versão mais recente (v{LOCAL_VERSION} - commit {local_sha[:7]})!", None
+                    else:
+                        return True, f"Nova atualização disponível no GitHub ({remote_sha[:7]}): {remote_msg}", None
+        except Exception:
+            # Fallback se a API de commits falhar: compara versão no version.py remoto
+            try:
+                raw_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/core/version.py"
+                with _abrir_url(raw_url, timeout=15) as resp:
+                    raw_content = resp.read().decode("utf-8")
+                    v_match = re.search(r'VERSION\s*=\s*["\']([^"\']+)["\']', raw_content)
+                    if v_match:
+                        remote_ver = v_match.group(1).strip()
+                        if parse_version(remote_ver) > parse_version(LOCAL_VERSION):
+                            return True, f"Nova versão encontrada: v{remote_ver} (versão atual: v{LOCAL_VERSION})", None
+                        else:
+                            return False, f"O aplicativo já está na versão mais recente (v{LOCAL_VERSION})!", None
+            except Exception:
+                pass
+
+        # Fallback local via Git fetch se repositório git estiver configurado
+        project_dir = get_project_dir()
+        if os.path.isdir(os.path.join(project_dir, ".git")):
+            try:
+                subprocess.run(["git", "fetch", "origin", GITHUB_BRANCH], cwd=project_dir, capture_output=True, text=True)
+                res_local = subprocess.run(["git", "rev-parse", "HEAD"], cwd=project_dir, capture_output=True, text=True)
+                res_remote = subprocess.run(["git", "rev-parse", f"origin/{GITHUB_BRANCH}"], cwd=project_dir, capture_output=True, text=True)
+                if res_local.returncode == 0 and res_remote.returncode == 0:
+                    l_sha = res_local.stdout.strip()
+                    r_sha = res_remote.stdout.strip()
+                    if l_sha == r_sha:
+                        return False, f"O aplicativo já está na versão mais recente (commit {l_sha[:7]})!", None
+                    else:
+                        return True, f"Nova versão disponível no repositório Git (commit {r_sha[:7]})!", None
+            except Exception:
+                pass
+
+        return True, "Atualização disponível no GitHub.", None
 
 def atualizar_codigo_fonte(progress_callback: Optional[Callable[[str, float], None]] = None) -> Tuple[bool, str]:
     """
@@ -196,8 +318,6 @@ def aplicar_atualizacao_executavel(download_url: str, progress_callback: Optiona
     current_pid = os.getpid()
 
     if sys.platform.startswith("win"):
-        # Script batch temporário para aguardar o fechamento do processo atual,
-        # substituir o arquivo no mesmo local da memória/disco e reexecutar a nova versão
         updater_bat = os.path.join(tempfile.gettempdir(), f"update_gerador_{current_pid}.bat")
         bat_content = f"""@echo off
 chcp 65001 >nul
@@ -234,13 +354,10 @@ del "%~f0" >nul 2>&1 & exit
         with open(updater_bat, "w", encoding="utf-8") as f:
             f.write(bat_content)
 
-        # Dispara o script batch em segundo plano
         CREATE_NO_WINDOW = 0x08000000
         subprocess.Popen(["cmd.exe", "/c", updater_bat], creationflags=CREATE_NO_WINDOW)
-        # O programa atual encerra para liberar o arquivo para substituição
         sys.exit(0)
     else:
-        # Linux / Unix
         try:
             os.replace(temp_new_exe, target_exe)
             os.chmod(target_exe, 0o755)
@@ -255,7 +372,6 @@ def reiniciar_programa():
     project_dir = get_project_dir()
     app_script = os.path.join(project_dir, "app.py")
     if sys.platform.startswith("win"):
-        # No Windows, abre uma nova instância limpa e encerra a anterior
         subprocess.Popen([sys.executable, app_script] + sys.argv[1:], cwd=project_dir)
         sys.exit(0)
     else:
@@ -264,24 +380,25 @@ def reiniciar_programa():
 def executar_atualizacao(progress_callback: Optional[Callable[[str, float], None]] = None) -> Tuple[bool, str]:
     """
     Função principal de atualização chamada pela GUI ou CLI.
-    Identifica automaticamente se é executável ou script e atualiza pelo GitHub.
+    Primeiro verifica se realmente a versão do GitHub é uma atualização da versão atual.
+    Se já estiver na versão mais recente, informa o usuário e não faz download.
+    Se houver nova versão, realiza a atualização e reinicia.
     """
+    tem_atualizacao, msg_verif, url_down = verificar_se_tem_atualizacao(progress_callback)
+
+    if not tem_atualizacao:
+        # Não é uma versão mais nova, o usuário já está com a versão atualizada
+        return True, msg_verif
+
+    # Há realmente uma nova versão!
     if is_frozen():
-        # Estamos rodando como EXECUTÁVEL (.exe)
-        if progress_callback:
-            progress_callback("Consultando versão mais recente no GitHub...", 5)
-        tem_exe, url_exe, tag_name = verificar_release_executavel()
-        if tem_exe and url_exe:
-            return aplicar_atualizacao_executavel(url_exe, progress_callback)
+        if url_down:
+            return aplicar_atualizacao_executavel(url_down, progress_callback)
         else:
-            # Não encontrou executável nos Releases do GitHub
-            return False, (
-                "Nenhum executável novo (.exe) foi encontrado nas Releases do repositório GitHub.\n\n"
-                f"Repositório: https://github.com/{GITHUB_REPO}\n"
-                "Para disponibilizar novas versões do executável, publique uma Release no GitHub."
-            )
+            return False, msg_verif
     else:
-        # Estamos rodando como CÓDIGO FONTE / PROGRAMA PYTHON / .BAT
+        if progress_callback:
+            progress_callback("Baixando atualização do GitHub...", 20)
         sucesso, msg = atualizar_codigo_fonte(progress_callback)
         if sucesso:
             if progress_callback:
@@ -294,6 +411,7 @@ def executar_atualizacao_cli():
     print("========================================================")
     print(" Verificando atualizacoes no GitHub...")
     print(f" Repositorio: {GITHUB_REPO} ({GITHUB_BRANCH})")
+    print(f" Versao Local: {LOCAL_VERSION}")
     print("========================================================")
     def cli_progress(msg, pct):
         print(f"[*] {msg}")

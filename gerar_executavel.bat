@@ -114,7 +114,7 @@ echo.
 echo ========================================================
 echo  Compilando para executavel unico (.exe)...
 echo ========================================================
-"%PYTHON_CMD%" -m PyInstaller --noconsole --onefile --add-data "modelo_base.docx;." --hidden-import "core.updater" --hidden-import "core.viagem_parser" --hidden-import "core.word_generator" --name "GeradorViagensWord" app.py
+"%PYTHON_CMD%" -m PyInstaller --noconsole --onefile --add-data "modelo_base.docx;." --hidden-import "core.version" --hidden-import "core.updater" --hidden-import "core.viagem_parser" --hidden-import "core.word_generator" --name "GeradorViagensWord" app.py
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ========================================================
