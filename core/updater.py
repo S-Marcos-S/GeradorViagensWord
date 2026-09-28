@@ -451,6 +451,18 @@ def executar_atualizacao_cli():
     print("========================================================")
     def cli_progress(msg, pct):
         print(f"[*] {msg}")
+
+    tem_atualizacao, msg_verif, url_down = verificar_se_tem_atualizacao(cli_progress)
+    if not tem_atualizacao:
+        print(f"\n{msg_verif}")
+        return 0
+
+    print("\n========================================================")
+    print(f" {msg_verif}")
+    print(" O programa vai atualizar e vai abrir automaticamente.")
+    print(" Por favor, aguarde ate que o programa abra novamente.")
+    print("========================================================\n")
+
     sucesso, msg = executar_atualizacao(cli_progress)
     print(f"\nResultado: {msg}")
     return 0 if sucesso else 1

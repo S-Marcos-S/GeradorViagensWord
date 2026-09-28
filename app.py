@@ -182,7 +182,7 @@ def iniciar_gui():
 
         lbl_m_status = ttk.Label(
             frame_m,
-            text="Clique em 'Atualizar Agora' para verificar se há uma nova versão no GitHub.",
+            text="Clique em 'Procurar Atualização' para verificar se há uma nova versão no GitHub.",
             style="CardBody.TLabel",
             wraplength=430
         )
@@ -209,19 +209,72 @@ def iniciar_gui():
             btn_fechar.config(state="disabled")
             prog_bar.config(mode="indeterminate")
             prog_bar.start(10)
+            lbl_m_status.config(text="Procurando atualizações no GitHub...")
 
-            def worker():
-                sucesso, msg = executar_atualizacao(atualizar_ui)
-                def _done():
+            def worker_verificacao():
+                from core.updater import (
+                    verificar_se_tem_atualizacao,
+                    aplicar_atualizacao_executavel,
+                    atualizar_codigo_fonte,
+                    reiniciar_programa,
+                    is_frozen
+                )
+                tem_atualizacao, msg_verif, url_down = verificar_se_tem_atualizacao(atualizar_ui)
+
+                def _apos_verificacao():
                     prog_bar.stop()
-                    lbl_m_status.config(text=msg)
-                    btn_fechar.config(state="normal")
-                    btn_iniciar.config(state="normal", text="Verificar Novamente")
-                modal.after(0, _done)
+                    if not tem_atualizacao:
+                        lbl_m_status.config(text=msg_verif)
+                        btn_fechar.config(state="normal")
+                        btn_iniciar.config(state="normal", text="Procurar Novamente")
+                        messagebox.showinfo("Atualização", msg_verif, parent=modal)
+                    else:
+                        lbl_m_status.config(text=f"{msg_verif}\nAguardando início...")
 
-            threading.Thread(target=worker, daemon=True).start()
+                        # Mensagem informativa solicitada pelo usuário
+                        messagebox.showinfo(
+                            "Atualização Encontrada",
+                            f"{msg_verif}\n\n"
+                            "O programa vai atualizar e vai abrir automaticamente.\n\n"
+                            "Por favor, aguarde até que o programa abra novamente.",
+                            parent=modal
+                        )
 
-        btn_iniciar = ttk.Button(btn_modal_box, text="Atualizar Agora", command=iniciar_atualizacao, style="Action.TButton")
+                        # Inicia o download e aplicação da nova versão
+                        btn_iniciar.config(state="disabled")
+                        btn_fechar.config(state="disabled")
+                        prog_bar.config(mode="indeterminate")
+                        prog_bar.start(10)
+                        lbl_m_status.config(text="Baixando atualização... Por favor, aguarde o programa reiniciar sozinho.")
+
+                        def worker_download():
+                            if is_frozen():
+                                if url_down:
+                                    sucesso, msg = aplicar_atualizacao_executavel(url_down, atualizar_ui)
+                                else:
+                                    sucesso, msg = False, "URL do executável não foi encontrada nas Releases."
+                            else:
+                                sucesso, msg = atualizar_codigo_fonte(atualizar_ui)
+                                if sucesso:
+                                    atualizar_ui("Reiniciando aplicativo...", 100)
+                                    reiniciar_programa()
+
+                            def _falha():
+                                prog_bar.stop()
+                                lbl_m_status.config(text=f"Erro na atualização: {msg}")
+                                btn_fechar.config(state="normal")
+                                btn_iniciar.config(state="normal", text="Tentar Novamente")
+                                messagebox.showerror("Erro na Atualização", msg, parent=modal)
+
+                            modal.after(0, _falha)
+
+                        threading.Thread(target=worker_download, daemon=True).start()
+
+                modal.after(0, _apos_verificacao)
+
+            threading.Thread(target=worker_verificacao, daemon=True).start()
+
+        btn_iniciar = ttk.Button(btn_modal_box, text="Procurar Atualização", command=iniciar_atualizacao, style="Action.TButton")
         btn_iniciar.pack(side="left", padx=(0, 10))
 
         btn_fechar = ttk.Button(btn_modal_box, text="Fechar", command=modal.destroy, style="Secondary.TButton")
