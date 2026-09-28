@@ -1,4 +1,4 @@
-VERSION = "1.2.5"
+VERSION = "1.2.6"
 COMMIT_SHA = "head"
 BUILD_DATE = "2026-09-28"
 
