@@ -322,41 +322,44 @@ def aplicar_atualizacao_executavel(download_url: str, progress_callback: Optiona
         bat_content = f"""@echo off
 chcp 65001 >nul
 setlocal
-set PID={current_pid}
-set NEW_EXE={temp_new_exe}
-set TARGET_EXE={target_exe}
+set "NEW_EXE={temp_new_exe}"
+set "TARGET_EXE={target_exe}"
 
-:: Aguarda o processo anterior encerrar completamente
-timeout /t 1 /nobreak >nul 2>&1
+:: Aguarda o processo original liberar o arquivo executavel
+ping 127.0.0.1 -n 2 >nul
 
-:wait_loop
-tasklist /fi "PID eq %PID%" 2>nul | find "%PID%" >nul
-if %ERRORLEVEL% EQU 0 (
-    timeout /t 1 /nobreak >nul 2>&1
-    goto wait_loop
-)
-
-timeout /t 1 /nobreak >nul 2>&1
-
-:: Substitui o executavel no mesmo local da memoria/disco
+:: Loop de substituicao (tenta mover o novo executavel por cima do atual)
+set RETRY=0
+:replace_loop
 move /y "%NEW_EXE%" "%TARGET_EXE%" >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    copy /y "%NEW_EXE%" "%TARGET_EXE%" >nul 2>&1
-    del /f /q "%NEW_EXE%" >nul 2>&1
-)
+if %ERRORLEVEL% EQU 0 goto :launch
 
-:: Inicia a nova versao atualizada
+ping 127.0.0.1 -n 2 >nul
+set /a RETRY+=1
+if %RETRY% LEQ 30 goto :replace_loop
+
+:: Tentativa de contingencia se o move falhar
+copy /y "%NEW_EXE%" "%TARGET_EXE%" >nul 2>&1
+del /f /q "%NEW_EXE%" >nul 2>&1
+
+:launch
 start "" "%TARGET_EXE%"
-
-:: Auto-exclusao do script temporario
 del "%~f0" >nul 2>&1 & exit
 """
         with open(updater_bat, "w", encoding="utf-8") as f:
             f.write(bat_content)
 
         CREATE_NO_WINDOW = 0x08000000
-        subprocess.Popen(["cmd.exe", "/c", updater_bat], creationflags=CREATE_NO_WINDOW)
-        sys.exit(0)
+        flags = CREATE_NO_WINDOW
+        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+            flags |= subprocess.CREATE_NEW_PROCESS_GROUP
+
+        subprocess.Popen(
+            ["cmd.exe", "/c", updater_bat],
+            creationflags=flags,
+            close_fds=True
+        )
+        os._exit(0)
     else:
         try:
             os.replace(temp_new_exe, target_exe)
@@ -373,7 +376,7 @@ def reiniciar_programa():
     app_script = os.path.join(project_dir, "app.py")
     if sys.platform.startswith("win"):
         subprocess.Popen([sys.executable, app_script] + sys.argv[1:], cwd=project_dir)
-        sys.exit(0)
+        os._exit(0)
     else:
         os.execv(sys.executable, [sys.executable, app_script] + sys.argv[1:])
 
