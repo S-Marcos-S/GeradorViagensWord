@@ -300,6 +300,7 @@ def aplicar_atualizacao_executavel(download_url: str, progress_callback: Optiona
     """
     target_exe = os.path.abspath(sys.executable)
     temp_new_exe = target_exe + ".new"
+    temp_old_exe = target_exe + ".old"
 
     if progress_callback:
         progress_callback("Baixando novo executável do GitHub...", 5)
@@ -324,26 +325,58 @@ chcp 65001 >nul
 setlocal
 set "NEW_EXE={temp_new_exe}"
 set "TARGET_EXE={target_exe}"
+set "OLD_EXE={temp_old_exe}"
 
-:: Aguarda o processo original liberar o arquivo executavel
+:: Aguarda 1 segundo para o encerramento do processo anterior
 ping 127.0.0.1 -n 2 >nul
 
-:: Loop de substituicao (tenta mover o novo executavel por cima do atual)
+:: Se existir algum .old anterior, tenta remover
+if exist "%OLD_EXE%" del /f /q "%OLD_EXE%" >nul 2>&1
+
+:: Loop de substituicao (tenta ate 30 vezes = ~30s)
 set RETRY=0
 :replace_loop
-move /y "%NEW_EXE%" "%TARGET_EXE%" >nul 2>&1
-if %ERRORLEVEL% EQU 0 goto :launch
 
+:: 1. Tenta apagar o executavel antigo diretamente
+if exist "%TARGET_EXE%" (
+    del /f /q "%TARGET_EXE%" >nul 2>&1
+)
+
+:: 2. Se nao conseguiu apagar direto (ex: Windows liberando handle), renomeia para .old
+:: No Windows NTFS, renomear um executavel em uso e permitido pelo sistema!
+if exist "%TARGET_EXE%" (
+    move /y "%TARGET_EXE%" "%OLD_EXE%" >nul 2>&1
+)
+
+:: 3. Se TARGET_EXE nao existe mais (foi apagado ou renomeado), move o novo para o lugar!
+if not exist "%TARGET_EXE%" (
+    move /y "%NEW_EXE%" "%TARGET_EXE%" >nul 2>&1
+    if %ERRORLEVEL% EQU 0 goto :launch
+)
+
+:: Aguarda 1 segundo e tenta novamente
 ping 127.0.0.1 -n 2 >nul
 set /a RETRY+=1
 if %RETRY% LEQ 30 goto :replace_loop
 
-:: Tentativa de contingencia se o move falhar
+:: Tentativa de contingencia com copy
 copy /y "%NEW_EXE%" "%TARGET_EXE%" >nul 2>&1
-del /f /q "%NEW_EXE%" >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    del /f /q "%NEW_EXE%" >nul 2>&1
+    goto :launch
+)
 
 :launch
+:: Tenta limpar o .old e .new
+if exist "%OLD_EXE%" del /f /q "%OLD_EXE%" >nul 2>&1
+if exist "%NEW_EXE%" del /f /q "%NEW_EXE%" >nul 2>&1
+
+:: Inicia o executavel atualizado
 start "" "%TARGET_EXE%"
+
+:: Limpeza final e encerramento
+ping 127.0.0.1 -n 2 >nul
+if exist "%OLD_EXE%" del /f /q "%OLD_EXE%" >nul 2>&1
 del "%~f0" >nul 2>&1 & exit
 """
         with open(updater_bat, "w", encoding="utf-8") as f:

@@ -56,10 +56,26 @@ def processar_arquivo(pdf_path: str, output_dir: Optional[str] = None, template_
     gerar_documento_word(dados, template_path, output_path)
     return output_path
 
+def limpar_residuos_atualizacao():
+    """Remove arquivos residuais de atualizações (.old e .new) se existirem."""
+    try:
+        if getattr(sys, "frozen", False):
+            exe_path = os.path.abspath(sys.executable)
+            for ext in (".old", ".new"):
+                res_file = exe_path + ext
+                if os.path.exists(res_file):
+                    try:
+                        os.remove(res_file)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
 # ==========================================
 # INTERFACE GRÁFICA (DESKTOP GUI PARA WINDOWS)
 # ==========================================
 def iniciar_gui():
+    limpar_residuos_atualizacao()
     import tkinter as tk
     from tkinter import ttk, filedialog, messagebox
 
