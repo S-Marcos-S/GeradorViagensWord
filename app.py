@@ -10,6 +10,7 @@ if CURRENT_DIR not in sys.path:
 
 from core.viagem_parser import extrair_dados_pdf
 from core.word_generator import gerar_documento_word
+from core.version import VERSION
 
 def get_resource_path(relative_path: str) -> str:
     """
@@ -63,7 +64,7 @@ def iniciar_gui():
     from tkinter import ttk, filedialog, messagebox
 
     root = tk.Tk()
-    root.title("Gerador de Listas de Viagens - Word")
+    root.title(f"Gerador de Listas de Viagens - Word (v{VERSION})")
     root.geometry("680x620")
     root.minsize(600, 550)
 
@@ -121,7 +122,7 @@ def iniciar_gui():
 
     lbl_sub = ttk.Label(
         header_text_frame,
-        text="Converte automaticamente o PDF Mapa de Viagem para o modelo oficial em Word (.docx)",
+        text=f"Converte automaticamente o PDF Mapa de Viagem para o modelo oficial em Word (.docx) • v{VERSION}",
         style="Subtitle.TLabel"
     )
     lbl_sub.pack(anchor="w")
