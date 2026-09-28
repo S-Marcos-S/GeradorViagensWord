@@ -20,17 +20,17 @@ jobs:
       - name: Baixar código do repositório
         uses: actions/checkout@v4
 
-      - name: Configurar Python
+      - name: Configurar Python 3.8 (x86 - Compatibilidade total com Windows 7 e 32-bit)
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.8'
+          architecture: 'x86'
           cache: 'pip'
 
       - name: Instalar dependências
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
 
       - name: Compilar executável com PyInstaller
         run: |
@@ -39,10 +39,13 @@ jobs:
       - name: Criar pacotes compactados (.zip)
         shell: pwsh
         run: |
-          # 1. Pacote compactado para Windows (Executável + Modelo + Scripts)
+          # 1. Pacote compactado para Windows (Executável + Modelo + Scripts + Código para contingência)
           New-Item -ItemType Directory -Force -Path dist/pacote_windows
           Copy-Item dist/GeradorViagensWord.exe dist/pacote_windows/
           Copy-Item modelo_base.docx dist/pacote_windows/
+          Copy-Item app.py dist/pacote_windows/
+          Copy-Item requirements.txt dist/pacote_windows/
+          Copy-Item -Recurse core dist/pacote_windows/
           Copy-Item iniciar_programa.bat dist/pacote_windows/
           Copy-Item atualizar_programa.bat dist/pacote_windows/
           Copy-Item README.md dist/pacote_windows/
@@ -56,6 +59,7 @@ jobs:
           Copy-Item iniciar_programa.bat dist/pacote_codigo/GeradorViagensWord/
           Copy-Item atualizar_programa.bat dist/pacote_codigo/GeradorViagensWord/
           Copy-Item gerar_executavel.bat dist/pacote_codigo/GeradorViagensWord/
+          Copy-Item baixar_pacotes_para_windows7.bat dist/pacote_codigo/GeradorViagensWord/
           Copy-Item README.md dist/pacote_codigo/GeradorViagensWord/
           Copy-Item -Recurse core dist/pacote_codigo/GeradorViagensWord/
           Compress-Archive -Path dist/pacote_codigo/GeradorViagensWord -DestinationPath dist/GeradorViagensWord-CodigoFonte.zip -Force
@@ -80,9 +84,11 @@ jobs:
           body: |
             ### 🚀 Gerador de Listas de Viagens (PDF para Word)
 
+            Compatível com **Windows 7 (32 e 64 bits)**, Windows 8, Windows 10 e Windows 11.
+
             #### 📦 Arquivos Disponíveis para Download:
-            - **`GeradorViagensWord.exe`**: Executável único para Windows (não precisa instalar Python).
-            - **`GeradorViagensWord-Windows.zip`**: Pacote compactado contendo o executável, modelo base e scripts de execução.
+            - **`GeradorViagensWord.exe`**: Executável único standalone 32-bit (não precisa de Python).
+            - **`GeradorViagensWord-Windows.zip`**: Pacote completo para Windows contendo o executável compilado, modelo base, scripts e código de contingência.
             - **`GeradorViagensWord-CodigoFonte.zip`**: Código-fonte completo com todos os scripts e templates.
           draft: false
           prerelease: false

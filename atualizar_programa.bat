@@ -10,6 +10,19 @@ echo   Repositorio: S-Marcos-S/GeradorViagensWord
 echo ========================================================
 echo.
 
+:: 1. Se estiver no modo executavel (pasta com GeradorViagensWord.exe e sem app.py)
+if not exist "app.py" (
+    if exist "GeradorViagensWord.exe" (
+        echo [1/1] Atualizando executavel GeradorViagensWord.exe...
+        "%~dp0GeradorViagensWord.exe" --atualizar
+        if %ERRORLEVEL% EQU 0 goto :concluido
+        echo.
+        echo Falha na atualizacao do executavel.
+        pause
+        exit /b 1
+    )
+)
+
 set PYTHON_CMD=
 
 :: Localiza Python no sistema
@@ -26,14 +39,22 @@ if "%PYTHON_CMD%"=="" (
     if exist "%LocalAppData%\Programs\Python\Python310\python.exe" set "PYTHON_CMD=%LocalAppData%\Programs\Python\Python310\python.exe"
     if exist "%LocalAppData%\Programs\Python\Python311\python.exe" set "PYTHON_CMD=%LocalAppData%\Programs\Python\Python311\python.exe"
     if exist "%LocalAppData%\Programs\Python\Python312\python.exe" set "PYTHON_CMD=%LocalAppData%\Programs\Python\Python312\python.exe"
+    if exist "%LocalAppData%\Programs\Python\Python313\python.exe" set "PYTHON_CMD=%LocalAppData%\Programs\Python\Python313\python.exe"
     if exist "C:\Python38\python.exe" set "PYTHON_CMD=C:\Python38\python.exe"
     if exist "C:\Python39\python.exe" set "PYTHON_CMD=C:\Python39\python.exe"
     if exist "C:\Python310\python.exe" set "PYTHON_CMD=C:\Python310\python.exe"
     if exist "C:\Python311\python.exe" set "PYTHON_CMD=C:\Python311\python.exe"
     if exist "C:\Python312\python.exe" set "PYTHON_CMD=C:\Python312\python.exe"
+    if exist "%ProgramFiles%\Python38\python.exe" set "PYTHON_CMD=%ProgramFiles%\Python38\python.exe"
+    if exist "%ProgramFiles%\Python39\python.exe" set "PYTHON_CMD=%ProgramFiles%\Python39\python.exe"
+    if exist "%ProgramFiles%\Python310\python.exe" set "PYTHON_CMD=%ProgramFiles%\Python310\python.exe"
+    if exist "%ProgramFiles%\Python311\python.exe" set "PYTHON_CMD=%ProgramFiles%\Python311\python.exe"
+    if exist "%ProgramFiles%\Python312\python.exe" set "PYTHON_CMD=%ProgramFiles%\Python312\python.exe"
+    if exist "%ProgramFiles(x86)%\Python38-32\python.exe" set "PYTHON_CMD=%ProgramFiles(x86)%\Python38-32\python.exe"
+    if exist "%ProgramFiles(x86)%\Python38\python.exe" set "PYTHON_CMD=%ProgramFiles(x86)%\Python38\python.exe"
 )
 
-:: 1. Tenta atualizar via Git se o git estiver instalado e for repo git
+:: 2. Tenta atualizar via Git se o git estiver instalado e for repo git
 where git >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     if exist ".git" (
@@ -50,10 +71,19 @@ if %ERRORLEVEL% EQU 0 (
     )
 )
 
-:: 2. Se nao tem git ou git falhou, usa o updater do Python
+:: 3. Se nao tem git ou git falhou, usa o updater do Python
 if not "%PYTHON_CMD%"=="" (
-    echo [2/2] Atualizando arquivos do repositorio via script Python...
-    "%PYTHON_CMD%" -c "import sys; from core.updater import executar_atualizacao_cli; sys.exit(executar_atualizacao_cli())"
+    if exist "core\updater.py" (
+        echo [2/2] Atualizando arquivos do repositorio via script Python...
+        "%PYTHON_CMD%" -c "import sys; from core.updater import executar_atualizacao_cli; sys.exit(executar_atualizacao_cli())"
+        if %ERRORLEVEL% EQU 0 goto :concluido
+    )
+)
+
+:: 4. Se falhou e existe GeradorViagensWord.exe, tenta por ele
+if exist "GeradorViagensWord.exe" (
+    echo Tentando atualizar via executavel GeradorViagensWord.exe...
+    "%~dp0GeradorViagensWord.exe" --atualizar
     if %ERRORLEVEL% EQU 0 goto :concluido
 )
 

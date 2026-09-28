@@ -11,9 +11,46 @@ echo  Iniciando o Gerador de Listas de Viagens...
 echo ========================================================
 echo.
 
+:: 1. Se app.py nao existe nesta pasta, verifica se o executavel .exe existe
+if not exist "app.py" (
+    if exist "GeradorViagensWord.exe" (
+        echo Executavel GeradorViagensWord.exe detectado!
+        echo Abrindo o aplicativo...
+        start "" "%~dp0GeradorViagensWord.exe"
+        exit /b 0
+    )
+    if exist "dist\GeradorViagensWord.exe" (
+        echo Executavel dist\GeradorViagensWord.exe detectado!
+        echo Abrindo o aplicativo...
+        start "" "%~dp0dist\GeradorViagensWord.exe"
+        exit /b 0
+    )
+    echo ====================================================================
+    echo [ERRO] O arquivo principal do aplicativo nao foi localizado!
+    echo ====================================================================
+    echo.
+    echo Nao foi possivel encontrar 'app.py' nem 'GeradorViagensWord.exe' nesta pasta:
+    echo %CD%
+    echo.
+    echo Possiveis causas:
+    echo   1. Voce abriu este arquivo diretamente de dentro do arquivo .zip
+    echo      sem extrair.
+    echo      SOLUCAO: Clique com o botao direito no arquivo .zip e escolha
+    echo      'Extrair Tudo', depois abra a pasta descompactada.
+    echo.
+    echo   2. Voce moveu ou copiou apenas este arquivo .bat para a Area de Trabalho.
+    echo      SOLUCAO: Nao copie o arquivo sozinho. Para colocar na Area de Trabalho,
+    echo      clique nele com o botao direito e selecione:
+    echo      Enviar para -^> Area de trabalho ^(criar atalho^).
+    echo ====================================================================
+    echo.
+    pause
+    exit /b 1
+)
+
 set PYTHON_CMD=
 
-:: 1. Tenta encontrar no PATH do Windows
+:: 2. Tenta encontrar no PATH do Windows
 where py >nul 2>&1
 if %ERRORLEVEL% EQU 0 set PYTHON_CMD=py
 
@@ -24,7 +61,7 @@ if %ERRORLEVEL% EQU 0 set PYTHON_CMD=python
 
 if not "%PYTHON_CMD%"=="" goto :python_found
 
-:: 2. Tenta encontrar nos caminhos padroes de instalacao
+:: 3. Tenta encontrar nos caminhos padroes de instalacao
 if exist "%LocalAppData%\Programs\Python\Python38-32\python.exe" set "PYTHON_CMD=%LocalAppData%\Programs\Python\Python38-32\python.exe" & goto :python_found
 if exist "%LocalAppData%\Programs\Python\Python38\python.exe" set "PYTHON_CMD=%LocalAppData%\Programs\Python\Python38\python.exe" & goto :python_found
 if exist "%LocalAppData%\Programs\Python\Python39\python.exe" set "PYTHON_CMD=%LocalAppData%\Programs\Python\Python39\python.exe" & goto :python_found
@@ -45,16 +82,33 @@ if exist "%ProgramFiles%\Python310\python.exe" set "PYTHON_CMD=%ProgramFiles%\Py
 if exist "%ProgramFiles%\Python311\python.exe" set "PYTHON_CMD=%ProgramFiles%\Python311\python.exe" & goto :python_found
 if exist "%ProgramFiles%\Python312\python.exe" set "PYTHON_CMD=%ProgramFiles%\Python312\python.exe" & goto :python_found
 
+if exist "%ProgramFiles(x86)%\Python38-32\python.exe" set "PYTHON_CMD=%ProgramFiles(x86)%\Python38-32\python.exe" & goto :python_found
+if exist "%ProgramFiles(x86)%\Python38\python.exe" set "PYTHON_CMD=%ProgramFiles(x86)%\Python38\python.exe" & goto :python_found
+
 if exist "%LocalAppData%\Microsoft\WindowsApps\python.exe" set "PYTHON_CMD=%LocalAppData%\Microsoft\WindowsApps\python.exe" & goto :python_found
 
-:: Se nao encontrou o Python
+:: Se nao encontrou o Python, mas existe o executavel compilado, abre o executavel!
+if exist "GeradorViagensWord.exe" (
+    echo Python nao encontrado, mas o executavel GeradorViagensWord.exe foi detectado!
+    echo Abrindo o aplicativo executavel...
+    start "" "%~dp0GeradorViagensWord.exe"
+    exit /b 0
+)
+if exist "dist\GeradorViagensWord.exe" (
+    echo Python nao encontrado, mas o executavel dist\GeradorViagensWord.exe foi detectado!
+    echo Abrindo o aplicativo executavel...
+    start "" "%~dp0dist\GeradorViagensWord.exe"
+    exit /b 0
+)
+
+:: Se nao encontrou o Python e nao tem executavel
 echo ====================================================================
 echo [AVISO] O Python ainda nao esta instalado no seu computador!
 echo ====================================================================
 echo.
 echo Para Windows 7:
 echo   1. Acesse: https://www.python.org/downloads/release/python-3810/
-echo   2. Baixe o instalador do Python 3.8.10
+echo   2. Baixe o instalador do Python 3.8.10 (Windows x86 executable installer)
 echo   3. ATENCAO: Na primeira tela da instalacao, marque a opcao:
 echo      Add Python to PATH
 echo   4. Clique em Install Now
@@ -99,6 +153,12 @@ echo Se este computador nao tiver internet, utilize o script
 echo 'baixar_pacotes_para_windows7.bat' no Windows 11 para
 echo gerar a pasta 'wheels' e copiar para este computador.
 echo ========================================================
+if exist "GeradorViagensWord.exe" (
+    echo.
+    echo O executavel standalone foi encontrado. Tentando abrir por ele...
+    start "" "%~dp0GeradorViagensWord.exe"
+    exit /b 0
+)
 pause
 exit /b 1
 
@@ -109,6 +169,12 @@ if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ========================================================
     echo Ocorreu um erro ao executar o aplicativo.
+    if exist "GeradorViagensWord.exe" (
+        echo.
+        echo Tentando abrir pelo executavel standalone...
+        start "" "%~dp0GeradorViagensWord.exe"
+        exit /b 0
+    )
     echo ========================================================
     pause
 )

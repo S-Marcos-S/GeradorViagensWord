@@ -1,6 +1,6 @@
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 COMMIT_SHA = "head"
-BUILD_DATE = "2026-09-24"
+BUILD_DATE = "2026-09-28"
 
 def get_current_version() -> str:
     return VERSION
